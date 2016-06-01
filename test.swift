@@ -40,13 +40,13 @@ enum Factor: Double {
 }
 
 var factors: [Factor: Double] = [
-    Factor.kilometers: 1,
-    Factor.miles: (1000 / 1609.344),
-    Factor.nauticalmiles: 1000 / 1852,
-    Factor.meters: 1000,
-    Factor.yards: 1000 / 0.9144,
-    Factor.feet: 1000 / 0.3048,
-    Factor.inches: 1000 / 0.0254,
+    Factor.kilometers: 1.0,
+    Factor.miles: 1000.0 / 1609.344,
+    Factor.nauticalmiles: 1000.0 / 1852.0,
+    Factor.meters: 1000.0,
+    Factor.yards: 1000.0 / 0.9144,
+    Factor.feet: 1000.0 / 0.3048,
+    Factor.inches: 1000.0 / 0.0254,
 ]
 
 struct PointOnLine {
@@ -91,18 +91,18 @@ class CheapRuler {
         return bearing
     }
     
-    func destination(p: Point, dist: Distance, bearing: Bearing) -> Point {
+    func destination(point: Point, dist: Distance, bearing: Bearing) -> Point {
         let a = (90 - bearing) * M_PI / 180
         return (
-            p.0 + cos(a) * dist / self.kx,
-            p.1 + sin(a) * dist / self.ky
+            point.0 + cos(a) * dist / self.kx,
+            point.1 + sin(a) * dist / self.ky
         )
     }
     
-    func lineDistance(points: [Point]) -> Distance {
+    func lineDistance(line: [Point]) -> Distance {
         var total: Distance = 0
-        for i in 0..<(points.count-1) {
-            total += self.distance(points[i], b: points[i + 1])
+        for i in 0..<(line.count-1) {
+            total += self.distance(a: line[i], b: line[i + 1])
         }
         return total
     }
@@ -134,10 +134,10 @@ class CheapRuler {
         for i in 0..<(line.count-1) {
             let p0 = line[i]
             let p1 = line[i + 1]
-            let d = distance(p0, b: p1)
+            let d = distance(a: p0, b: p1)
             sum += d
             if (sum > dist) {
-                return interpolate(p0, b: p1, t: (dist - (sum - d)) / d)
+                return interpolate(a: p0, b: p1, t: (dist - (sum - d)) / d)
             }
         }
         
@@ -159,7 +159,7 @@ class CheapRuler {
         )
     }
 
-    func pointOnLine(line: [Point], p: Point) -> PointOnLine {
+    func pointOnLine(line: [Point], point: Point) -> PointOnLine {
         var minDist = Infinity
         var minX: Double = Infinity
         var minY: Double = Infinity
@@ -175,7 +175,7 @@ class CheapRuler {
             
             if dx != 0 || dy != 0 {
             
-                t = ((p.0 - x) * self.kx * dx + (p.1 - y) * self.ky * dy) / (dx * dx + dy * dy)
+                t = ((point.0 - x) * self.kx * dx + (point.1 - y) * self.ky * dy) / (dx * dx + dy * dy)
                 
                 if (t > 1) {
                     x = line[i + 1].0
@@ -187,8 +187,8 @@ class CheapRuler {
                 }
             }
             
-            dx = (p.0 - x) * self.kx
-            dy = (p.1 - y) * self.ky
+            dx = (point.0 - x) * self.kx
+            dy = (point.1 - y) * self.ky
             
             let sqDist = dx * dx + dy * dy
             if (sqDist < minDist) {
@@ -208,8 +208,8 @@ class CheapRuler {
     }
     
     func lineSlice(start: Point, stop: Point, line: [Point]) -> [Point] {
-        var p1 = self.pointOnLine(line, p: start)
-        var p2 = self.pointOnLine(line, p: stop)
+        var p1 = self.pointOnLine(line: line, point: start)
+        var p2 = self.pointOnLine(line: line, point: stop)
         
         if p1.index > p2.index || (p1.index == p2.index && p1.t > p2.t) {
             (p1, p2) = (p2, p1)
@@ -245,16 +245,16 @@ class CheapRuler {
         for i in 0..<(line.count-1) {
             let p0 = line[i]
             let p1 = line[i + 1]
-            let d = self.distance(p0, b: p1)
+            let d = self.distance(a: p0, b: p1)
             
             sum += d
             
             if (sum > start && slice.count == 0) {
-                slice.append(interpolate(p0, b:p1, t:(start - (sum - d)) / d))
+                slice.append(interpolate(a: p0, b:p1, t:(start - (sum - d)) / d))
             }
             
             if (sum >= stop) {
-                slice.append(interpolate(p0, b:p1, t:(stop - (sum - d)) / d))
+                slice.append(interpolate(a: p0, b:p1, t:(stop - (sum - d)) / d))
                 return slice
             }
         
@@ -266,7 +266,8 @@ class CheapRuler {
         return slice
     }
     
-    func bufferPoint(p: Point, buffer: Buffer) -> BufferPoint {
+    func bufferPoint(point: Point, buffer: Buffer) -> BufferPoint {
+        let p = point
         let v = buffer / self.ky
         let h = buffer / self.kx
         return (
@@ -288,7 +289,8 @@ class CheapRuler {
         )
     }
     
-    func insideBBox(p: Point, bbox: BoundingBox) -> Bool {
+    func insideBBox(point: Point, bbox: BoundingBox) -> Bool {
+        let p = point
         return (
             p.0 >= bbox.0 &&
             p.0 <= bbox.2 &&
@@ -331,23 +333,23 @@ let distance_expected = [0.008378522721530966,0,0.010749717813535195,0.013838610
 
 for i in 0..<(points.count - 1) {
     let expected = distance_expected[i]
-    let actual = ruler.distance(points[i], b: points[i + 1])
-    assertErr(expected, actual: actual, maxErr: 0.003, description: "distance", i: i)
+    let actual = ruler.distance(a: points[i], b: points[i + 1])
+    assertErr(expected: expected, actual: actual, maxErr: 0.003, description: "distance", i: i)
 }
 
 // distance in miles
-let d = ruler.distance((30.5, 32.8351), b: (30.51, 32.8451))
-let d2 = milesRuler.distance((30.5, 32.8351), b: (30.51, 32.8451))
+let d = ruler.distance(a: (30.5, 32.8351), b: (30.51, 32.8451))
+let d2 = milesRuler.distance(a: (30.5, 32.8351), b: (30.51, 32.8451))
     
-assertErr(d / d2, actual: 1.609344, maxErr: 1e-12, description: "distance in miles", i: 0)
+assertErr(expected: d / d2, actual: 1.609344, maxErr: 1e-12, description: "distance in miles", i: 0)
 
 // bearing
 let bearing_expected = [-63.168358499156525,0,-88.81417863199124,-91.84236975959682,-66.4804397776352,95.21979003879285,-100.30570881092109,150.61043051857857,-42.42680621413667,-23.550372000573976,-13.952505152879572,-43.59833577684526,132.99198010184847,166.41929543518998,177.20325519324226,-179.08016175949166,-170.2370338024474,11.337660289272069,-82.74731094319029,63.53130497081162,8.962738746772079,9.37241746920313,-168.57228731223967,28.73076075405366,31.624597758763326,29.36786429209857,40.813300854422266,42.1946257366957,54.7169930372886,-109.61289479832882,-105.9508130297151,-97.35442495838335,103.73738360872169,128.6375329107378,139.40255086492127,154.35307612449398,172.41822883056525,-173.00067170261377,-157.88885299734986,-153.5843194614746,-135.57055815771457,-113.78745742209202,-92.43386994136272,-80.19821514884795,-62.82436796798226,-39.24535094861514,-19.378190588293595,-6.122391240486928,10.16238185779092,16.628046997768603,11.796298618679382,9.259418658966705,33.01398807351879,95.42809952638044,99.12772054024745,114.05171960369522,138.26425923288858,115.39825807606725,-78.13409883486399,-78.57409383522955,-87.1608521998273,-108.19195718992367,86.91738524336452,84.70017282115019,87.95033104208613,90.43302815253836,78.02446742625982,87.86117672643189,-69.86932102820376,-82.07107484899849,-72.8655307861755,-65.13553755141521,-44.7981708695929,-110.57110545811186,7.706991461697684,14.357081967635963,37.06518971504373,44.04525332938273,66.87692305523358,86.30473553343819,107.98313957933998,119.27773275661788,133.08034138732987,136.03334418261207,147.8395808939113,166.35653590671714,-174.66648288115692,-152.70026364821263,-134.67606485534643,-102.21019447885837,-98.37013738569259,-85.39045487355833,-83.16251407288334,-79.41426027160959,-71.61992023883627,25.647805187311675,171.1662911122707,175.31992211154693,171.14075667690167,168.4699111035812,171.99557069131671,166.22310505773353,1.1490813989122273,-160.4320410387924,-163.99994946634428,-165.77289001767542,-173.45680596800386,-170.84905103991312,-174.09621979055856,-175.54766503661992,-178.24648292813612,-178.9015131718509,-172.65900563912462,-167.5744291592953,-155.7719187979583,-147.18225435460818,-144.47188257911304,-132.58756099972285,-127.58358615210913,-124.36541206463681,-117.43139970286094,-114.09107335076804,-98.50829769899121,-93.15284638632924,-92.50530269541622,-94.47703726891226,-100.11192008554171,59.77360017974819,9.143285027780262,13.77132015480269,18.804056386135507,24.65786911308088,-162.44500486120558,-67.84560294942295,-41.52913748098395,-31.493999863996763,-11.862722004156868,4.911415385207834,20.576859308160813,39.328103571820634,47.731045069650285,60.04949187595387,77.6845353441491,92.1637728779789,106.87667403935711,129.48750446242522,134.76457530705628,148.07063441512034,162.56674425715815,167.60958213096342,-147.58932438109017,-0.3560229039908105,36.377431696680866,149.50345988783283,88.36898545916792,-12.223747274643541,4.239696778394533,-175.4876519466172,0.5992644178258197,0.6673420119705482,0.20949071130099972,-111.81827272747626,0.6404507023306292,91.5793518292065,-88.72964175221959,-72.73595760641244,23.023787326465758,21.284935273114474,20.497437869075558,26.023401004269186,38.80671567232787,55.53828086401786,72.43572115612405,81.25555219912327,71.54335789800336,-96.67318521315028,-94.12560298544153,-92.89044170566763,-89.99983922215846,-81.7451500515321,-73.01710953553376,-56.65379972059106,-75.85450215089512,-117.43602194308063,-0.5191133757264856,138.78810984877518,137.5682425746788,123.67524095771084,118.34970555203206,104.79079948892173,95.33306354879424,88.48636023444747,84.26539611740044,-89.23804769497431,126.44610739090022,6.304981288824429,9.538566926163998,13.280042951632824,19.166182380726028,21.51585631114597,-89.9996339244023,-164.35486777447994,-163.1715107556702,-169.47198029178583,-173.0931353906555,-173.68544129434264,-176.65500600808483,-179.38201633300537,19.859344499549415,26.825916744943097,30.042999793582226,32.87625705865586,30.585844995133318,25.48436330548106,-49.58528537315648,-45.66818093615927,-60.586961024854496,-44.17809723517507,-37.2135740642336,-29.02801030830766,-20.883863911308925,-10.016986247912778,-7.470516078862878,6.345968960148907,4.34320933123148,-144.9163810436088,91.7864594482791,100.57490882823174,115.01987711640018,126.49515677620997,132.966745035407,143.6768700122894,152.57244080298454,162.6386056371201,174.514957150436,180,-172.73016111884996,-173.57809345551522,-170.66439195451878,-161.1629250483923,-159.27915118031842,-162.90191363911163,6.149002598388654,-178.2500225299691,-179.67835798380744,-171.71629870266574,-163.02862431750938,-152.95560774367897,-145.55034083174812,-138.5096300766174,-130.9661041794466,-110.60445245946966,-63.488932752077304,-58.529628507022345,-40.784935262998765,-33.40113040557487,-15.899450269674261,-11.98079922160087,-8.147813630969711,0.8158694624984411,15.093060661548853,22.923229163325363,32.44078804116013,42.44701224126366,45.83427921267664,48.528375495078414,49.163719675217294,46.128985873372955,48.673227507999385,-89.99993112361511,-131.16855313994876,-132.21634274731403,-131.4350519146657,-131.1287697990316,-136.22759996904776,-148.82348281361985,-154.9192138530867,-165.80042858228467,-176.30209430353858,175.72884636973504,169.64893781149905,164.32272447851255,166.6095398893929,171.11558508661616,166.3637807550949,175.08861951595486,178.00534677470006,-173.15552477625073,-163.2497127428419,-153.06780391136738,-140.2005052574728,-130.17077601985082,-118.29848203381596,96.31992932299448,93.37488183764101,98.65620852739153,-13.220894289645209,90.78374679176733,-122.38574263089491,90.11906042024525,90.91606631492044,89.24226505681405,87.1952301524781,89.99989371956248,92.89042347378168,-73.7442223661134,-116.5749747098209,-106.68941539794253,-96.5786003424879,-90.23620894320433,-89.42530845671874,-89.99982105641458,96.0164612642601,97.77709140355806,89.99996123049279,93.32997836006317,87.96524189628325,90.86961377588838,90.23605053342786,-44.507638815015056,-87.22999594365552,-91.08466222064868,-89.10502963141018,-82.51948924593732,-70.55890852059743,-61.55042515421009,-54.93400664520933,-43.708432529297596,-42.63081903510838,-40.89066031737039,-39.768718845646205,74.90365235952855,-164.24862093846133,-166.4900911667301,-170.98867168255882,-173.2072838170113,-176.56563073555716,-177.67795564554825,-179.25657611558916,177.6794175196906,177.08641995231696,-179.7039343413944,-162.31174704216053,-88.05239082888943,104.83933395017499,90.91884342556446,89.99898193057349,-89.65566421438594,90.45177683075705,90.6074206920093,90.35190900335924,15.25222948630731,-176.8898360115017,-170.29517886199278,-167.6901473062663,-163.7553909375346,-160.7898000462187,-162.40423641399113,11.815918282043793,-89.89521786020993,-88.44037032878992,-90.42210719551586,-89.99998237874593,89.64945709817326,-97.75278349052702,-95.7033459340717,-92.46126755841848,-91.68219351310293,-90.94678497048473,-90.39810804835399,-163.10988605635674,18.404250368996713,18.41984455338911,17.853582297431547,12.289104435180683,8.709879039137686,2.235361458620355,1.0172614149810169,-0.3417131293573436,0.766344154322848,6.935793520625259,9.538556914147389,12.252956858473992,18.194809085044522,-175.03725779127225,-89.34475877575512,-158.31621119961858,-74.8695322495171,109.63776192527477,92.36950183161946,-10.475734036813332,90.2902405855761,-177.254272156639,-89.10855416706457,-173.55458838862484,90.5716881361661]
 
 for i in 0..<(points.count - 1) {
     var expected = bearing_expected[i]
-    var actual = ruler.bearing(points[i], b: points[i + 1])
-    assertErr(expected, actual: actual, maxErr: 0.005, description: "bearing", i: i)
+    var actual = ruler.bearing(a: points[i], b: points[i + 1])
+    assertErr(expected: expected, actual: actual, maxErr: 0.005, description: "bearing", i: i)
 }
 
 // destination
@@ -357,9 +359,9 @@ var destination_expected = [[-96.920341,32.829270606227354], [-96.92060772614724
 for i in 0..<points.count {
     let bearing = Double((i % 360) - 180)
     let expected = destination_expected[i]
-    let actual = ruler.destination(points[i], dist: 1.0, bearing: bearing)
-    assertErr(expected[0], actual: actual.0, maxErr: 1e-6, description: "destination longitude", i: i)
-    assertErr(expected[1], actual: actual.1, maxErr: 1e-6, description: "destination latitude", i: i)
+    let actual = ruler.destination(point: points[i], dist: 1.0, bearing: bearing)
+    assertErr(expected: expected[0], actual: actual.0, maxErr: 1e-6, description: "destination longitude", i: i)
+    assertErr(expected: expected[1], actual: actual.1, maxErr: 1e-6, description: "destination latitude", i: i)
 }
 
 // lineDistance
@@ -367,8 +369,8 @@ let lineDistance_expected = [0.04662454909427901,0.0068391514197623125,0.0998521
 
 for i in 0..<lines.count {
     var expected = lineDistance_expected[i]
-    var actual = ruler.lineDistance(lines[i])
-    assertErr(expected, actual: actual, maxErr: 0.003, description: "lineDistance", i: i)
+    var actual = ruler.lineDistance(line: lines[i])
+    assertErr(expected: expected, actual: actual, maxErr: 0.003, description: "lineDistance", i: i)
 }
 
 func areaTest() {
@@ -377,8 +379,8 @@ func areaTest() {
     assert(polygons.count == area_expected.count)
     
     for i in 0..<polygons.count {
-        let actual = ruler.area([polygons[i]])
-        assertErr(area_expected[i], actual: actual, maxErr: 0.003, description: "area", i: i)
+        let actual = ruler.area(polygon: [polygons[i]])
+        assertErr(expected: area_expected[i], actual: actual, maxErr: 0.003, description: "area", i: i)
     }
 }
 areaTest()
@@ -391,24 +393,24 @@ let along_expected = [[-96.92058074705261,32.838295790638604],[-96.9203850000022
 for i in 0..<lines.count {
     let expected = along_expected[i]
     let dist = along_dist_expected[i]
-    let actual = ruler.along(lines[i], dist: dist)
-    assertErr(expected[0], actual: actual.0, maxErr: 1e-6, description: "along longitude" , i: i)
-    assertErr(expected[1], actual: actual.1, maxErr: 1e-6, description: "along latitude", i: i)
+    let actual = ruler.along(line: lines[i], dist: dist)
+    assertErr(expected: expected[0], actual: actual.0, maxErr: 1e-6, description: "along longitude" , i: i)
+    assertErr(expected: expected[1], actual: actual.1, maxErr: 1e-6, description: "along latitude", i: i)
 }
 
 // along with dist <= 0
-if ruler.along(lines[0], dist: -5) != lines[0][0] {
+if ruler.along(line: lines[0], dist: -5) != lines[0][0] {
     print("FAIL: first point")
 }
 
 // along with dist > length
-if ruler.along(lines[0], dist: 1000) != lines[0][lines[0].count - 1] {
+if ruler.along(line: lines[0], dist: 1000) != lines[0][lines[0].count - 1] {
     print("FAIL: last point")
 }
 
 // pointOnLine
 let line = [(-77.031669, 38.878605), (-77.029609, 38.881946)]
-let p = ruler.pointOnLine(line, p:(-77.034076, 38.882017)).point
+let p = ruler.pointOnLine(line: line, point: (-77.034076, 38.882017)).point
 if p != (-77.03052697027461, 38.880457194811896) {
     print("FAIL: pointOnLine")
 }
@@ -422,15 +424,15 @@ func lineSliceTest() {
         }
         
         let line = lines[i]
-        let dist = ruler.lineDistance(line)
-        let start = ruler.along(line, dist: dist * 0.3)
-        let stop = ruler.along(line, dist: dist * 0.7)
+        let dist = ruler.lineDistance(line: line)
+        let start = ruler.along(line: line, dist: dist * 0.3)
+        let stop = ruler.along(line: line, dist: dist * 0.7)
         
         let expected = expecteds[i]
         
-        let actual = ruler.lineDistance(ruler.lineSlice(start, stop: stop, line: line))
+        let actual = ruler.lineDistance(line: ruler.lineSlice(start: start, stop: stop, line: line))
         
-        assertErr(expected, actual: actual, maxErr: 1.17e-12, description: "lineSlice length", i: i)
+        assertErr(expected: expected, actual: actual, maxErr: 1.17e-12, description: "lineSlice length", i: i)
     }
 }
 lineSliceTest()
@@ -443,11 +445,11 @@ func lineSliceAlongTest() {
             continue; // skip due to Turf bug https://github.com/Turfjs/turf/issues/351
         }
         let line = lines[i]
-        let dist = ruler.lineDistance(line)
+        let dist = ruler.lineDistance(line: line)
         
-        let actual = ruler.lineDistance(ruler.lineSliceAlong(dist * 0.3, stop: dist * 0.7, line: line));
+        let actual = ruler.lineDistance(line: ruler.lineSliceAlong(start: dist * 0.3, stop: dist * 0.7, line: line));
         
-        assertErr(expecteds[i], actual: actual, maxErr: 1e-10, description: "lineSliceAlong length", i: i);
+        assertErr(expected: expecteds[i], actual: actual, maxErr: 1e-10, description: "lineSliceAlong length", i: i);
     }
 }
 lineSliceAlongTest()
@@ -455,10 +457,10 @@ lineSliceAlongTest()
 // lineSlice reverse
 func lineSliceReverseTest() {
     let line = lines[0]
-    let dist = ruler.lineDistance(line)
-    let start = ruler.along(line, dist: dist * 0.7)
-    let stop = ruler.along(line, dist: dist * 0.3)
-    let actual = ruler.lineDistance(ruler.lineSlice(start, stop: stop, line: line));
+    let dist = ruler.lineDistance(line: line)
+    let start = ruler.along(line: line, dist: dist * 0.7)
+    let stop = ruler.along(line: line, dist: dist * 0.3)
+    let actual = ruler.lineDistance(line: ruler.lineSlice(start: start, stop: stop, line: line));
     if actual != 0.018676802802910702 {
         print("lineSlice reversed length")
     }
@@ -470,18 +472,18 @@ func bufferPointTest() {
     
     for i in 0..<points.count {
         let expected = bufferPoint_expected[i]
-        let actual = milesRuler.bufferPoint(points[i], buffer: 0.1)
-        assertErr(expected[0], actual: actual.0, maxErr: 2e-7, description: "bufferPoint west", i: -1)
-        assertErr(expected[1], actual: actual.1, maxErr: 2e-7, description: "bufferPoint east", i: -1)
-        assertErr(expected[2], actual: actual.2, maxErr: 2e-7, description: "bufferPoint south", i: -1)
-        assertErr(expected[3], actual: actual.3, maxErr: 2e-7, description: "bufferPoint north", i: -1)
+        let actual = milesRuler.bufferPoint(point: points[i], buffer: 0.1)
+        assertErr(expected: expected[0], actual: actual.0, maxErr: 2e-7, description: "bufferPoint west", i: -1)
+        assertErr(expected: expected[1], actual: actual.1, maxErr: 2e-7, description: "bufferPoint east", i: -1)
+        assertErr(expected: expected[2], actual: actual.2, maxErr: 2e-7, description: "bufferPoint south", i: -1)
+        assertErr(expected: expected[3], actual: actual.3, maxErr: 2e-7, description: "bufferPoint north", i: -1)
     }
 }
 bufferPointTest()
 
 func bufferBBoxTest() {
     let bbox = (30.0, 38.0, 40.0, 39.0)
-    let bbox2 = ruler.bufferBBox(bbox, buffer: 1)
+    let bbox2 = ruler.bufferBBox(bbox: bbox, buffer: 1)
     if bbox2 != (29.989319515875376, 37.99098271225711, 40.01068048412462, 39.00901728774289) {
         print("FAIL: bufferBBox")
     }
@@ -491,10 +493,10 @@ bufferBBoxTest()
 
 func insideBBoxTest() {
     let bbox = (30.0, 38.0, 40.0, 39.0);
-    if !ruler.insideBBox((35, 38.5), bbox: bbox) {
+    if !ruler.insideBBox(point: (35, 38.5), bbox: bbox) {
         print("FAIL: insideBBox inside")
     }
-    if ruler.insideBBox((45, 45), bbox: bbox) {
+    if ruler.insideBBox(point: (45, 45), bbox: bbox) {
         print("insideBBox outside")
     }
 }
@@ -508,13 +510,14 @@ func cheapRulerFromTileTest() {
     let p1 = (30.5, 50.5)
     let p2 = (30.51, 50.51)
     
-    assertErr(ruler1.distance(p1, b: p2), actual: ruler2.distance(p1, b: p2), maxErr: 2e-5, description: "cheapRuler.fromTile distance", i: 0)
+    assertErr(expected: ruler1.distance(a: p1, b: p2), actual: ruler2.distance(a: p1, b: p2), maxErr: 2e-5, description: "cheapRuler.fromTile distance", i: 0)
 }
 cheapRulerFromTileTest()
 
 // benchmark helpers
 
-func runNodeBenchMark(name: String) -> Double {
+
+func runNodeBenchMark(name: String, funcName: String) -> Double {
     let task = NSTask()
     task.launchPath = "/usr/local/bin/node"
     task.arguments = ["bench-\(name).js"]
@@ -528,29 +531,32 @@ func runNodeBenchMark(name: String) -> Double {
     let output: String = NSString(data: data, encoding: NSUTF8StringEncoding)! as String
     let lines = output.characters.split{$0 == "\n"}.map(String.init)
     let rulerOutput = lines.filter{$0.hasPrefix("ruler.")}[0]
-    
-    assert(rulerOutput.hasPrefix("ruler.\(name) x "))
-    let javascriptOpsPerSecond = Double(rulerOutput.characters.filter{let comma: Character = ","; return $0 != comma}.split{$0 == " "}.map(String.init)[2])!
+
+    let javascriptOpsPerSecond = Double(rulerOutput.characters.filter{let comma: Character = ","; return $0 != comma}.split{$0 == " "}.map{String($0)}[2])!
     
     return javascriptOpsPerSecond
 }
 
-func compareBench(name: String, swiftBench: () -> Double) {
+func compareBench(_ name: String, funcName: String, swiftBench: () -> Double) {
     let opsPerSecond = swiftBench()
-    let ratio = String(format: "%.2f", opsPerSecond / runNodeBenchMark(name))
+    let ratio = String(format: "%.2f", opsPerSecond / runNodeBenchMark(name: name, funcName: funcName))
     print("swift implementation of \"\(name)\" is \(ratio) times faster")
+}
+
+func compareBench(_ name: String, swiftBench: () -> Double) {
+    compareBench(name, funcName: name, swiftBench: swiftBench)
 }
 
 // individual benchmarks
 compareBench("along") {
     var distances = lines.map({
         (line: [Point]) -> (Double) in
-        return ruler.lineDistance(line)
+        return ruler.lineDistance(line: line)
     })
     
     return timeIt {
         for i in 0..<lines.count {
-            ruler.along(lines[i], dist: distances[i])
+            ruler.along(line: lines[i], dist: distances[i])
         }
     }
 }
@@ -558,7 +564,7 @@ compareBench("along") {
 compareBench("area") {
     timeIt {
         for p in polygons {
-            ruler.area([p])
+            ruler.area(polygon: [p])
         }
     }
 }
@@ -566,24 +572,24 @@ compareBench("area") {
 compareBench("bearing") {
     timeIt {
         for i in 0..<(points.count-1) {
-            ruler.bearing(points[i], b: points[i + 1])
+            ruler.bearing(a: points[i], b: points[i + 1])
         }
     }
 }
 
-compareBench("buffer-point") {
+compareBench("buffer-point", funcName: "bufferPoint") {
     timeIt {
         for p in points {
-            ruler.bufferPoint(p, buffer: 0.01)
+            ruler.bufferPoint(point: p, buffer: 0.01)
         }
     }
 }
 
 compareBench("destination") {
     timeIt {
-        for (i, p) in points.enumerate() {
+        for (i, p) in points.enumerated() {
             let p = points[i]
-            ruler.destination(p, dist: 1, bearing: Double((i % 360) - 180))
+            ruler.destination(point: p, dist: 1, bearing: Double((i % 360) - 180))
         }
     }
 }
@@ -591,43 +597,43 @@ compareBench("destination") {
 compareBench("distance") {
     timeIt {
         for l in lines {
-            ruler.lineDistance(l)
+            ruler.lineDistance(line: l)
         }
     }
 }
 
 compareBench("inside-bbox") {
-    let bboxes = points.map() {ruler.bufferPoint($0, buffer: 0.1)}
+    let bboxes = points.map() {ruler.bufferPoint(point: $0, buffer: 0.1)}
 
     return timeIt {
-        for (i, p) in points.enumerate() {
-            ruler.insideBBox(p, bbox: bboxes[i])
+        for (i, p) in points.enumerated() {
+            ruler.insideBBox(point: p, bbox: bboxes[i])
         }
     }
 }
 
 compareBench("line-slice-along") {
-    let distances = lines.map() { ruler.lineDistance($0) }
+    let distances = lines.map() { ruler.lineDistance(line: $0) }
     
     return timeIt {
-        for (i, l) in lines.enumerate() {
-            ruler.lineSliceAlong(distances[i] * 0.3, stop: distances[i] * 0.7, line: l)
+        for (i, l) in lines.enumerated() {
+            ruler.lineSliceAlong(start: distances[i] * 0.3, stop: distances[i] * 0.7, line: l)
         }
     }
 }
 
 compareBench("line-slice") {
     let endpoints: [(Point, Point)] = lines.map() {
-        let dist = ruler.lineDistance($0);
+        let dist = ruler.lineDistance(line: $0)
         return (
-            ruler.along($0, dist: dist * 0.3),
-            ruler.along($0, dist: dist * 0.7)
+            ruler.along(line: $0, dist: dist * 0.3),
+            ruler.along(line: $0, dist: dist * 0.7)
         )
     }
     
     return timeIt {
-        for (i, l) in lines.enumerate() {
-            ruler.lineSlice(endpoints[i].0, stop: endpoints[i].1, line: l);
+        for (i, l) in lines.enumerated() {
+            ruler.lineSlice(start: endpoints[i].0, stop: endpoints[i].1, line: l);
         }
     }
 }
@@ -636,7 +642,7 @@ compareBench("point-on-line") {
     let p = (-96.9159, 32.8351)
     return timeIt {
         for l in lines {
-            ruler.pointOnLine(l, p: p)
+            ruler.pointOnLine(line: l, point: p)
         }
     }
 }
